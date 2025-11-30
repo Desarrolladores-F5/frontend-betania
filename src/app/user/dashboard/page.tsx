@@ -164,7 +164,7 @@ export default function UserDashboardPage() {
           <div>
             <div className="text-lg font-semibold">Continuar donde lo dejaste</div>
             <div className="text-sm text-muted-foreground">
-              Accede rápidamente a tus cursos activos y retoma la última lección.
+              Accede rápidamente a tus cursos activos y retoma la última clase.
             </div>
           </div>
           <div className="flex gap-2">

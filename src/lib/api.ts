@@ -335,7 +335,11 @@ export type LeccionBase = {
   youtube_id_extra?: string | null;
   youtube_titulo_extra?: string | null;
 
-  // PDF asociado
+  // 📄 PDF con contenido principal de la clase
+  contenido_pdf_url?: string | null;
+  contenido_pdf_titulo?: string | null;
+
+  // 📄 PDF de recursos / complementario
   pdf_url?: string | null;
   pdf_titulo?: string | null;
 
@@ -396,6 +400,11 @@ export const LeccionesAdminAPI = {
     youtube_id_extra?: string | null;
     youtube_titulo_extra?: string | null;
 
+    // PDF contenido principal
+    contenido_pdf_url?: string | null;
+    contenido_pdf_titulo?: string | null;
+
+    // PDF recursos / complementario
     pdf_url?: string | null;
     pdf_titulo?: string | null;
 
