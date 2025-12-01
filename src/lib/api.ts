@@ -365,6 +365,10 @@ export type LeccionBase = {
 export type LeccionListItem = LeccionBase;
 export type LeccionDetalle = LeccionBase;
 
+/* 🎯 Alias de compatibilidad para código antiguo que usa "ClaseListItem" */
+export type ClaseListItem = LeccionListItem;
+export type ClaseDetalle = LeccionDetalle;
+
 type LeccionesListResponse =
   | { ok: boolean; data: LeccionListItem[] }
   | LeccionListItem[];
@@ -403,11 +407,9 @@ export const LeccionesAdminAPI = {
     youtube_id_extra?: string | null;
     youtube_titulo_extra?: string | null;
 
-    // PDF contenido principal
     contenido_pdf_url?: string | null;
     contenido_pdf_titulo?: string | null;
 
-    // PDF recursos / complementario
     pdf_url?: string | null;
     pdf_titulo?: string | null;
 
