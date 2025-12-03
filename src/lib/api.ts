@@ -9,18 +9,19 @@ export const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL ?? API_URL;
 
 /**
  * Cliente Axios
- * - baseURL: API_URL → apunta directamente al backend (Railway o local)
+ * - baseURL: `${API_URL}/api` → apunta directamente al backend (Railway o local)
  * - withCredentials: true → envío/recepción de cookies HttpOnly.
  */
 const api = axios.create({
-  baseURL: API_URL,   // ✅ AHORA ESTÁ BIEN
+  baseURL: `${API_URL}/api`,   // ⬅️ IMPORTANTE: vuelve a llevar /api aquí
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
 
-// 👇 MUY IMPORTANTE: exportación por defecto y nombrada
+// 👇 exportaciones
 export default api;
 export { api };
+
 
 /* ======================================================================
  * Utilidades comunes
