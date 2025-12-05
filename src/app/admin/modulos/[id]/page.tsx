@@ -92,10 +92,21 @@ export default function EditModuloPage() {
           ? (data.pdf_intro_url ?? "").trim()
           : null;
 
-      // 2) Si el usuario seleccionó un archivo, se sube y se usa esa URL
-      const maybeFile = (data as any).pdf_intro_file as File | undefined;
-      if (maybeFile && maybeFile instanceof File) {
-        const { url } = await UploadsAPI.uploadPdf(maybeFile);
+      // 2) Intentar leer archivo desde pdf_intro_file (puede ser FileList o File)
+      const rawFile = (data as any).pdf_intro_file as
+        | FileList
+        | File
+        | null
+        | undefined;
+
+      const file: File | undefined =
+        rawFile && (rawFile as any).length
+          ? (rawFile as FileList)[0]
+          : (rawFile as File | undefined);
+
+      // 3) Si hay archivo, subirlo y reemplazar la URL
+      if (file) {
+        const { url } = await UploadsAPI.uploadPdf(file);
         pdfUrl = url;
       }
 
