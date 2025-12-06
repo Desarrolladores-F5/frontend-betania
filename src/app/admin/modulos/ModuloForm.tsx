@@ -17,6 +17,8 @@ const ModuloSchema = z.object({
   pdf_intro_url: z
     .union([z.string().url("URL inválida"), z.literal(""), z.null()])
     .optional(),
+  // Este campo lo dejamos en el esquema solo para que RHF no falle,
+  // pero el archivo REAL lo manejaremos vía onPdfFileChange.
   pdf_intro_file: z.any().optional(),
 });
 
@@ -28,6 +30,9 @@ type Props = {
   submitLabel?: string;
   loading?: boolean;
   actionsSlot?: React.ReactNode;
+
+  /** Callback para notificar a la página qué archivo PDF se seleccionó */
+  onPdfFileChange?: (file: File | null) => void;
 };
 
 export default function ModuloForm({
@@ -36,6 +41,7 @@ export default function ModuloForm({
   submitLabel = "Guardar cambios",
   loading = false,
   actionsSlot,
+  onPdfFileChange,
 }: Props) {
   const {
     register,
@@ -46,7 +52,8 @@ export default function ModuloForm({
     defaultValues: {
       titulo: defaultValues?.titulo ?? "",
       descripcion: defaultValues?.descripcion ?? "",
-      orden: typeof defaultValues?.orden === "number" ? defaultValues.orden : null,
+      orden:
+        typeof defaultValues?.orden === "number" ? defaultValues.orden : null,
       activo: defaultValues?.activo ?? true,
       video_intro_url: defaultValues?.video_intro_url ?? "",
       pdf_intro_url: defaultValues?.pdf_intro_url ?? "",
@@ -55,6 +62,14 @@ export default function ModuloForm({
 
   const disabled = loading || isSubmitting;
   const onValidSubmit: SubmitHandler<ModuloFormValues> = (data) => onSubmit(data);
+
+  /** Maneja el cambio del input file y notifica al padre */
+  const handlePdfChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0] ?? null;
+    if (onPdfFileChange) {
+      onPdfFileChange(file);
+    }
+  };
 
   return (
     <form
@@ -72,7 +87,11 @@ export default function ModuloForm({
             placeholder="Ej: Introducción a la Seguridad"
             disabled={disabled}
           />
-          {errors.titulo && <p className="mt-1 text-sm text-red-600">{errors.titulo.message}</p>}
+          {errors.titulo && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.titulo.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -80,13 +99,18 @@ export default function ModuloForm({
           <input
             type="number"
             {...register("orden", {
-              setValueAs: (v) => (v === "" || v === undefined ? null : Number(v)),
+              setValueAs: (v) =>
+                v === "" || v === undefined ? null : Number(v),
             })}
             className="w-full rounded-lg border px-3 py-2"
             placeholder="Ej: 1"
             disabled={disabled}
           />
-          {errors.orden && <p className="mt-1 text-sm text-red-600">{errors.orden.message as string}</p>}
+          {errors.orden && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.orden.message as string}
+            </p>
+          )}
         </div>
 
         <div className="md:col-span-2">
@@ -98,7 +122,9 @@ export default function ModuloForm({
             disabled={disabled}
           />
           {errors.descripcion && (
-            <p className="mt-1 text-sm text-red-600">{errors.descripcion.message as string}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.descripcion.message as string}
+            </p>
           )}
         </div>
 
@@ -107,12 +133,15 @@ export default function ModuloForm({
             Recursos iniciales del módulo (opcionales)
           </h2>
           <p className="text-xs text-slate-500">
-            Estos serán los primeros recursos que verá el beneficiario al ingresar al módulo.
+            Estos serán los primeros recursos que verá el beneficiario al
+            ingresar al módulo.
           </p>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Video  (YouTube)</label>
+          <label className="mb-1 block text-sm font-medium">
+            Video (YouTube)
+          </label>
           <input
             type="url"
             {...register("video_intro_url")}
@@ -121,12 +150,14 @@ export default function ModuloForm({
             disabled={disabled}
           />
           {errors.video_intro_url && (
-            <p className="mt-1 text-sm text-red-600">{errors.video_intro_url.message as string}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.video_intro_url.message as string}
+            </p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">PDF  (URL)</label>
+          <label className="mb-1 block text-sm font-medium">PDF (URL)</label>
           <input
             type="url"
             {...register("pdf_intro_url")}
@@ -135,7 +166,9 @@ export default function ModuloForm({
             disabled={disabled}
           />
           {errors.pdf_intro_url && (
-            <p className="mt-1 text-sm text-red-600">{errors.pdf_intro_url.message as string}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.pdf_intro_url.message as string}
+            </p>
           )}
         </div>
 
@@ -145,6 +178,7 @@ export default function ModuloForm({
             type="file"
             accept="application/pdf"
             {...register("pdf_intro_file")}
+            onChange={handlePdfChange}
             className="w-full rounded-lg border px-3 py-2"
             disabled={disabled}
           />

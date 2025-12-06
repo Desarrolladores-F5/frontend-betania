@@ -38,6 +38,9 @@ export default function EditModuloPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [defaults, setDefaults] = React.useState<ModuloFormValues | null>(null);
 
+  // ⬇️ Nuevo: estado local para el archivo PDF seleccionado en el formulario
+  const [pdfFile, setPdfFile] = React.useState<File | null>(null);
+
   React.useEffect(() => {
     let alive = true;
 
@@ -63,6 +66,9 @@ export default function EditModuloPage() {
 
         const dv = normalizeModulo(m as unknown as ModuloRaw);
         setDefaults(dv);
+
+        // Al cargar el módulo, limpiamos cualquier archivo previo en memoria
+        setPdfFile(null);
       } catch (e: any) {
         if (!alive) return;
         setError(
@@ -92,21 +98,10 @@ export default function EditModuloPage() {
           ? (data.pdf_intro_url ?? "").trim()
           : null;
 
-      // 2) Intentar leer archivo desde pdf_intro_file (puede ser FileList o File)
-      const rawFile = (data as any).pdf_intro_file as
-        | FileList
-        | File
-        | null
-        | undefined;
-
-      const file: File | undefined =
-        rawFile && (rawFile as any).length
-          ? (rawFile as FileList)[0]
-          : (rawFile as File | undefined);
-
-      // 3) Si hay archivo, subirlo y reemplazar la URL
-      if (file) {
-        const { url } = await UploadsAPI.uploadPdf(file);
+      // 2) Si el usuario seleccionó un nuevo archivo en el formulario,
+      //    usamos ese archivo y subimos al backend.
+      if (pdfFile) {
+        const { url } = await UploadsAPI.uploadPdf(pdfFile);
         pdfUrl = url;
       }
 
@@ -117,7 +112,10 @@ export default function EditModuloPage() {
           descripcion: data.descripcion ?? null,
           orden: data.orden ?? 1,
           activo: data.activo ?? true,
-          video_intro_url: data.video_intro_url || null,
+          video_intro_url:
+            data.video_intro_url && data.video_intro_url.trim().length > 0
+              ? data.video_intro_url.trim()
+              : null,
           pdf_intro_url: pdfUrl,
         } as any
       );
@@ -174,6 +172,9 @@ export default function EditModuloPage() {
               onSubmit={handleSubmit}
               submitLabel="Guardar"
               loading={saving}
+              // ⬇️ Muy importante: aquí conectamos el input file del formulario
+              //     con el estado local pdfFile que usamos en handleSubmit.
+              onPdfFileChange={setPdfFile}
             />
           </section>
         )}
