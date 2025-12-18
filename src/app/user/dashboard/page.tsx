@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, PlayCircle, Trophy } from "lucide-react";
 import api from "@/lib/api";
+import HeroVideo from "@/components/user/HeroVideo";
 
 type StatItem = {
   key: "cursos_activos" | "lecciones_pendientes" | "progreso_global";
@@ -21,9 +22,27 @@ function firstName(s?: string | null) {
 
 export default function UserDashboardPage() {
   const [stats, setStats] = useState<StatItem[]>([
-    { key: "cursos_activos",       label: "Cursos activos",        icon: BookOpen,   href: "/user/mis-cursos", value: null },
-    { key: "lecciones_pendientes", label: "Lecciones pendientes",  icon: PlayCircle, href: "/user/mis-cursos", value: null },
-    { key: "progreso_global",      label: "Progreso global (%)",   icon: Trophy,     href: "/user/mis-cursos", value: null },
+    {
+      key: "cursos_activos",
+      label: "Cursos activos",
+      icon: BookOpen,
+      href: "/user/mis-cursos",
+      value: null,
+    },
+    {
+      key: "lecciones_pendientes",
+      label: "Lecciones pendientes",
+      icon: PlayCircle,
+      href: "/user/mis-cursos",
+      value: null,
+    },
+    {
+      key: "progreso_global",
+      label: "Progreso global (%)",
+      icon: Trophy,
+      href: "/user/mis-cursos",
+      value: null,
+    },
   ]);
 
   const [userName, setUserName] = useState<string>("Usuario");
@@ -35,7 +54,10 @@ export default function UserDashboardPage() {
     try {
       const raw = localStorage.getItem("user_display");
       if (raw) {
-        const snap = JSON.parse(raw) as { nombres?: string | null; email?: string | null };
+        const snap = JSON.parse(raw) as {
+          nombres?: string | null;
+          email?: string | null;
+        };
         const n0 = firstName(snap?.nombres);
         if (n0) setUserName(n0);
         else if (snap?.email) setUserName(String(snap.email).split("@")[0]);
@@ -52,25 +74,38 @@ export default function UserDashboardPage() {
       const me = meRes.data?.user ?? null;
 
       const fromMe = firstName(me?.nombres ?? me?.nombre);
-      if (fromMe) { setUserName(fromMe); return; }
+      if (fromMe) {
+        setUserName(fromMe);
+        return;
+      }
 
       try {
         const perfilRes = await api.get("/user/perfil");
         const perfil = perfilRes.data?.data ?? perfilRes.data ?? {};
         const fromPerfil = firstName(perfil?.nombres ?? perfil?.nombre);
-        if (fromPerfil) { setUserName(fromPerfil); return; }
+        if (fromPerfil) {
+          setUserName(fromPerfil);
+          return;
+        }
       } catch {}
 
       const email = String(me?.email ?? "").trim();
-      if (email) { setUserName(email.split("@")[0]); return; }
+      if (email) {
+        setUserName(email.split("@")[0]);
+        return;
+      }
 
       try {
         const listRes = await api.get("/admin/usuarios");
-        const rows: any[] = Array.isArray(listRes.data) ? listRes.data : (listRes.data?.data ?? []);
+        const rows: any[] = Array.isArray(listRes.data)
+          ? listRes.data
+          : (listRes.data?.data ?? []);
         const found = rows.find((u: any) => u.id === me?.id);
         const fromAdmin = firstName(found?.nombres);
         setUserName(fromAdmin || "Usuario");
-      } catch { setUserName("Usuario"); }
+      } catch {
+        setUserName("Usuario");
+      }
     } catch {
       setUserName("Usuario");
     } finally {
@@ -85,13 +120,25 @@ export default function UserDashboardPage() {
       const res = await api.get("/user/estadisticas");
       const payload = res.data ?? {};
       const data = payload?.data ?? payload ?? {};
-      setStats(prev => prev.map(s => ({
-        ...s,
-        value: typeof (data as any)[s.key] === "number" ? (data as any)[s.key] : null,
-      })));
+      setStats((prev) =>
+        prev.map((s) => ({
+          ...s,
+          value:
+            typeof (data as any)[s.key] === "number"
+              ? (data as any)[s.key]
+              : null,
+        })),
+      );
     } catch {
-      setError("Aún no hay estadísticas disponibles. Mostrando valores indicativos.");
-      setStats(prev => prev.map(s => ({ ...s, value: s.key === "progreso_global" ? 0 : 0 })));
+      setError(
+        "Aún no hay estadísticas disponibles. Mostrando valores indicativos.",
+      );
+      setStats((prev) =>
+        prev.map((s) => ({
+          ...s,
+          value: s.key === "progreso_global" ? 0 : 0,
+        })),
+      );
     } finally {
       setLoadingCounts(false);
     }
@@ -99,7 +146,9 @@ export default function UserDashboardPage() {
 
   // Solo botón superior-derecha
   async function handleLogout() {
-    try { await api.post("/auth/logout"); } catch {}
+    try {
+      await api.post("/auth/logout");
+    } catch {}
     localStorage.removeItem("user");
     localStorage.removeItem("user_display");
     window.location.href = "/login";
@@ -110,13 +159,20 @@ export default function UserDashboardPage() {
       {/* Banner de bienvenida */}
       <div
         className="section-card banner-welcome"
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem" }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "1rem 1.25rem",
+        }}
       >
         <div>
           <h3 className="welcome-title">
             {loadingUser ? "Cargando..." : `${userName}, ¡bienvenido!`}
           </h3>
-          <p className="welcome-sub">Revisa tu avance, continúa tus cursos y vuelve cuando quieras.</p>
+          <p className="welcome-sub">
+            Revisa tu avance, continúa tus cursos y vuelve cuando quieras.
+          </p>
         </div>
 
         {/* Acciones: SOLO Cerrar sesión */}
@@ -133,20 +189,45 @@ export default function UserDashboardPage() {
       </div>
 
       {/* Tarjetas estadísticas */}
-      <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-label="Indicadores de progreso">
+      <section
+        className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        aria-label="Indicadores de progreso"
+      >
         {stats.map((t) => {
           const Icon = t.icon;
           return (
-            <Link key={t.key} href={t.href ?? "#"} className="tile-link" aria-label={t.label}>
-              <article className="stat-card custom-card" aria-label={`${t.label} - ${t.value ?? "cargando"}`}>
-                <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+            <Link
+              key={t.key}
+              href={t.href ?? "#"}
+              className="tile-link"
+              aria-label={t.label}
+            >
+              <article
+                className="stat-card custom-card"
+                aria-label={`${t.label} - ${t.value ?? "cargando"}`}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 18,
+                    alignItems: "center",
+                  }}
+                >
                   <div className="card-icon-wrap" aria-hidden>
-                    <Icon width={36} height={36} className="card-icon stat-icon" />
+                    <Icon
+                      width={36}
+                      height={36}
+                      className="card-icon stat-icon"
+                    />
                   </div>
                   <div>
                     <div className="stat-label">{t.label}</div>
                     <div className="stat-value">
-                      {t.value === null ? (loadingCounts ? "..." : "—") : t.value}
+                      {t.value === null
+                        ? loadingCounts
+                          ? "..."
+                          : "—"
+                        : t.value}
                     </div>
                   </div>
                 </div>
@@ -162,19 +243,32 @@ export default function UserDashboardPage() {
       <div className="section-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-lg font-semibold">Continuar donde lo dejaste</div>
+            <div className="text-lg font-semibold">
+              Continuar donde lo dejaste
+            </div>
             <div className="text-sm text-muted-foreground">
               Accede rápidamente a tus cursos activos y retoma la última clase.
             </div>
           </div>
           <div className="flex gap-2">
-            <Link href="/user/mis-cursos" className="action-primary">Mis cursos</Link>
-            <Link href="/user/perfil" className="px-3 py-2 rounded-lg border border-border hover:bg-accent/50">
+            <Link href="/user/mis-cursos" className="action-primary">
+              Mis cursos
+            </Link>
+            <Link
+              href="/user/perfil"
+              className="px-3 py-2 rounded-lg border border-border hover:bg-accent/50"
+            >
               Mi perfil
             </Link>
           </div>
         </div>
       </div>
+
+      {/* 👇 VIDEO al final del dashboard con poster fijo 👇 */}
+      <HeroVideo
+        youtubeId="GdS_uF_wqq8"
+        poster="/betania-poster.png" // pon aquí la ruta real de tu imagen
+      />
     </div>
   );
 }

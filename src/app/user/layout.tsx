@@ -2,15 +2,16 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import React from "react";
 import api, { clearAuth } from "@/lib/api";
 
 const NAV = [
   { href: "/user/dashboard", label: "Inicio" },
-  { href: "/user/mis-cursos", label: "Mis cursos" },   // (opcional) crea esta ruta cuando quieras
-  { href: "/user/perfil", label: "Mi perfil" },        // (opcional)
-  { href: "/user/ayuda", label: "Ayuda" },             // (opcional)
+  { href: "/user/mis-cursos", label: "Mis cursos" },
+  { href: "/user/perfil", label: "Mi perfil" },
+  { href: "/user/ayuda", label: "Ayuda" },
 ];
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
@@ -30,13 +31,22 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="dashboard-root">
-      {/* Sidebar (mismo look&feel que admin) */}
+      {/* Sidebar */}
       <aside className="dashboard-sidebar">
-        <div className="brand-sm">
-          <div className="brand-logo-sm" aria-hidden />
+        <div className="brand-sm flex items-center gap-3 px-3 py-4">
+
+          {/* LOGO desde /public */}
+          <Image
+            src="/logo-betania.png"
+            width={42}
+            height={42}
+            alt="Logo Fundación Betania Acoge"
+            className="rounded-lg shadow-sm"
+          />
+
           <div>
             <div className="text-xs text-white/80">Fundación Betania Acoge</div>
-            <div className="brand-title-sm">Panel Usuario</div>
+            <div className="brand-title-sm">Panel Beneficiario</div>
           </div>
         </div>
 
@@ -44,7 +54,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           {NAV.map(({ href, label }) => {
             const active = pathname === href || pathname?.startsWith(href + "/");
             return (
-              <Link key={href} href={href} className={`sidebar-link ${active ? "active" : ""}`}>
+              <Link
+                key={href}
+                href={href}
+                className={`sidebar-link ${active ? "active" : ""}`}
+              >
                 {label}
               </Link>
             );

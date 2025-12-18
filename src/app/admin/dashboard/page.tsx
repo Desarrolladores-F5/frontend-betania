@@ -4,12 +4,18 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Users, BookOpen, Layers, PlayCircle, FileText } from "lucide-react";
-import api, { UsuariosAPI, CursosAdminAPI } from "@/lib/api";
-// Si luego agregas sus clientes, impórtalos aquí:
-// import { ModulosAdminAPI, LeccionesAdminAPI, ReportesAdminAPI, PruebasAdminAPI } from "@/lib/api";
+import api, {
+  UsuariosAPI,
+  CursosAdminAPI,
+  ModulosAdminAPI,
+  PruebasAdminAPI,
+  ReportesAdminAPI,
+} from "@/lib/api";
+
+type StatKey = "usuarios" | "cursos" | "modulos" | "pruebas" | "reportes";
 
 type StatItem = {
-  key: "usuarios" | "cursos" | "modulos" | "pruebas" | "reportes";
+  key: StatKey;
   label: string;
   icon: React.ComponentType<any>;
   href?: string;
@@ -18,13 +24,41 @@ type StatItem = {
 
 export default function AdminHome() {
   const [stats, setStats] = useState<StatItem[]>([
-    { key: "usuarios", label: "Usuarios", icon: Users, href: "/admin/usuarios", value: null },
-    { key: "cursos",   label: "Cursos",   icon: BookOpen, href: "/admin/cursos", value: null },
-    { key: "modulos",  label: "Módulos",  icon: Layers, href: "/admin/modulos", value: null },
-    // 🔁 Antes: key "lecciones" → href "/admin/lecciones"
-    // Ahora esta tarjeta controla el listado de pruebas:
-    { key: "pruebas",  label: "Pruebas",  icon: PlayCircle, href: "/admin/pruebas", value: null },
-    { key: "reportes", label: "Reportes", icon: FileText, href: "/admin/reportes", value: null },
+    {
+      key: "usuarios",
+      label: "Usuarios",
+      icon: Users,
+      href: "/admin/usuarios",
+      value: null,
+    },
+    {
+      key: "cursos",
+      label: "Cursos",
+      icon: BookOpen,
+      href: "/admin/cursos",
+      value: null,
+    },
+    {
+      key: "modulos",
+      label: "Módulos",
+      icon: Layers,
+      href: "/admin/modulos",
+      value: null,
+    },
+    {
+      key: "pruebas",
+      label: "Pruebas",
+      icon: PlayCircle,
+      href: "/admin/pruebas",
+      value: null,
+    },
+    {
+      key: "reportes",
+      label: "Reportes",
+      icon: FileText,
+      href: "/admin/reportes",
+      value: null,
+    },
   ]);
 
   const [userName, setUserName] = useState<string>("Usuario");
@@ -33,22 +67,20 @@ export default function AdminHome() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUserName();
-    fetchCounts();
+    void fetchUserName();
+    void fetchCounts();
   }, []);
 
   async function fetchUserName() {
     setLoadingUser(true);
     try {
-      // 1) Obtener id desde /auth/me
-      const meRes = await api.get("/auth/me"); // -> { user: { id, rol } }
+      const meRes = await api.get("/auth/me"); // { user: { id, ... } }
       const userId: number | null = meRes.data?.user?.id ?? null;
 
       let display = "Usuario";
 
       if (userId != null) {
-        // 2) Buscar registro en /admin/usuarios y extraer 'nombres' o prefijo email
-        const listRes = await api.get("/admin/usuarios"); // -> { ok, data: [ ... ] } o arreglo
+        const listRes = await api.get("/admin/usuarios");
         const rows: any[] = Array.isArray(listRes.data)
           ? listRes.data
           : (listRes.data?.data ?? []);
@@ -73,26 +105,25 @@ export default function AdminHome() {
     }
   }
 
-  /**
-   * Fallback de estadísticas en frontend:
-   * - Llama a las listas existentes (usuarios, cursos) en paralelo.
-   * - Si el backend usa paginación, este conteo reflejará SOLO la página retornada.
-   *   En ese caso, conviene exponer /admin/estadisticas en el backend.
-   */
   async function fetchCounts() {
     setLoadingCounts(true);
     setError(null);
     try {
-      const [usuariosRes, cursosRes /*, modulosRes, pruebasRes, reportesRes */] =
-        await Promise.allSettled([
-          UsuariosAPI.list(),
-          CursosAdminAPI.list(),
-          // ModulosAdminAPI.list(),
-          // PruebasAdminAPI.list(),
-          // ReportesAdminAPI.list(),
-        ]);
+      const [
+        usuariosRes,
+        cursosRes,
+        modulosRes,
+        pruebasRes,
+        reportesRes,
+      ] = await Promise.allSettled([
+        UsuariosAPI.list(),
+        CursosAdminAPI.list(),
+        ModulosAdminAPI.listAll(),
+        PruebasAdminAPI.list(),
+        ReportesAdminAPI.list(),
+      ]);
 
-      const nextValues: Partial<Record<StatItem["key"], number>> = {};
+      const nextValues: Partial<Record<StatKey, number>> = {};
 
       if (usuariosRes.status === "fulfilled") {
         nextValues.usuarios = Array.isArray(usuariosRes.value)
@@ -106,22 +137,23 @@ export default function AdminHome() {
           : 0;
       }
 
-      // Descomenta / ajusta cuando tengas los clientes:
-      // if (modulosRes.status === "fulfilled") {
-      //   nextValues.modulos = Array.isArray(modulosRes.value)
-      //     ? modulosRes.value.length
-      //     : 0;
-      // }
-      // if (pruebasRes.status === "fulfilled") {
-      //   nextValues.pruebas = Array.isArray(pruebasRes.value)
-      //     ? pruebasRes.value.length
-      //     : 0;
-      // }
-      // if (reportesRes.status === "fulfilled") {
-      //   nextValues.reportes = Array.isArray(reportesRes.value)
-      //     ? reportesRes.value.length
-      //     : 0;
-      // }
+      if (modulosRes.status === "fulfilled") {
+        nextValues.modulos = Array.isArray(modulosRes.value)
+          ? modulosRes.value.length
+          : 0;
+      }
+
+      if (pruebasRes.status === "fulfilled") {
+        nextValues.pruebas = Array.isArray(pruebasRes.value)
+          ? pruebasRes.value.length
+          : 0;
+      }
+
+      if (reportesRes.status === "fulfilled") {
+        nextValues.reportes = Array.isArray(reportesRes.value)
+          ? reportesRes.value.length
+          : 0;
+      }
 
       setStats((prev) =>
         prev.map((s) => ({
@@ -129,9 +161,11 @@ export default function AdminHome() {
           value: nextValues[s.key] ?? s.value,
         })),
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error("fetchCounts error:", err);
-      setError("No se pudieron cargar las estadísticas. Visualizando valores en caché.");
+      setError(
+        "No se pudieron cargar las estadísticas. Visualizando valores en caché.",
+      );
     } finally {
       setLoadingCounts(false);
     }
@@ -203,7 +237,11 @@ export default function AdminHome() {
                   <div>
                     <div className="stat-label">{t.label}</div>
                     <div className="stat-value">
-                      {t.value === null ? (loadingCounts ? "..." : "—") : t.value}
+                      {t.value === null
+                        ? loadingCounts
+                          ? "..."
+                          : "—"
+                        : t.value}
                     </div>
                   </div>
                 </div>

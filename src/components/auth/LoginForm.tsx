@@ -91,7 +91,7 @@ export default function LoginForm(): React.JSX.Element {
 
       <div>
         <label htmlFor="email" className="field-label">
-          Usuario (email)
+          Beneficiario (email)
         </label>
         <input
           id="email"

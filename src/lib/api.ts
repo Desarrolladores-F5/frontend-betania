@@ -5,23 +5,22 @@ import axios from "axios";
  * Configuración global de API
  * ====================================================================== */
 export const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-export const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL ?? API_URL;
+export const FILES_BASE_URL =
+  process.env.NEXT_PUBLIC_FILES_BASE_URL ?? API_URL;
 
 /**
  * Cliente Axios
- * - baseURL: `${API_URL}/api` → apunta directamente al backend (Railway o local)
+ * - baseURL: `${API_URL}/api` → apunta directamente al backend
  * - withCredentials: true → envío/recepción de cookies HttpOnly.
  */
 const api = axios.create({
-  baseURL: `${API_URL}/api`,   // ⬅️ IMPORTANTE: vuelve a llevar /api aquí
+  baseURL: `${API_URL}/api`,
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
 
-// 👇 exportaciones
 export default api;
 export { api };
-
 
 /* ======================================================================
  * Utilidades comunes
@@ -280,11 +279,18 @@ type ModuloItemResponse =
   | ModuloDetalle;
 
 export const ModulosAdminAPI = {
+  /** Lista módulos de un curso concreto */
   async listByCurso(cursoId: number): Promise<ModuloListItem[]> {
     const res = await api.get<any>(`/admin/cursos/${cursoId}/modulos`);
     const payload = res.data;
     if (Array.isArray(payload?.modulos)) return payload.modulos;
     return unwrapList<ModuloListItem>(payload);
+  },
+
+  /** ✅ Nuevo: lista todos los módulos (para el dashboard) */
+  async listAll(): Promise<ModuloListItem[]> {
+    const res = await api.get<any>("/admin/modulos");
+    return unwrapList<ModuloListItem>(res.data);
   },
 
   async get(id: number): Promise<ModuloDetalle | null> {
@@ -365,7 +371,7 @@ export type LeccionBase = {
 export type LeccionListItem = LeccionBase;
 export type LeccionDetalle = LeccionBase;
 
-/* 🎯 Alias de compatibilidad para código antiguo que usa "ClaseListItem" */
+/** Alias de compatibilidad para código antiguo que usa "ClaseListItem" */
 export type ClaseListItem = LeccionListItem;
 export type ClaseDetalle = LeccionDetalle;
 
@@ -659,5 +665,96 @@ export const PruebasAdminAPI = {
 
   async deleteAlternativa(id: number): Promise<void> {
     await api.delete(`/admin/examenes/alternativas/${id}`);
+  },
+};
+
+/* ======================================================================
+ * Reportes (Admin) — Aprobaciones (módulo / curso)
+ * ====================================================================== */
+
+export type ReporteResumenAdmin = {
+  modulos_aprobados?: number;
+  cursos_aprobados?: number;
+  modulos_en_progreso?: number;
+  cursos_en_progreso?: number;
+  total_aprobaciones_modulo?: number;
+  total_aprobaciones_curso?: number;
+};
+
+type ReporteResumenResponse =
+  | { ok: boolean; data: ReporteResumenAdmin }
+  | ReporteResumenAdmin;
+
+export type AprobacionTipo = "modulo" | "curso";
+
+export type ReporteAprobacionAdmin = {
+  // Identificadores
+  id: number;
+
+  tipo: AprobacionTipo;
+
+  // Alumno
+  usuario_id: number;
+  alumno_nombre?: string | null;
+  alumno_email?: string | null;
+
+  // Curso / Módulo
+  curso_id?: number | null;
+  curso_titulo?: string | null;
+  modulo_id?: number | null;
+  modulo_titulo?: string | null;
+
+  // Resultado
+  estado?: "aprobado" | "reprobado" | "en_progreso" | string;
+  nota_final?: number | null;
+
+  // Fechas
+  fecha_aprobacion?: string | null;
+  created_at?: string;
+};
+
+type AprobacionesListResponse =
+  | { ok: boolean; data: ReporteAprobacionAdmin[] }
+  | ReporteAprobacionAdmin[];
+
+/** (Opcional) Mantengo compatibilidad con tu list() original */
+export type ReporteAdmin = {
+  id: number;
+  titulo?: string | null;
+  estado?: string | null;
+};
+type ReportesListResponse =
+  | { ok: boolean; data: ReporteAdmin[] }
+  | ReporteAdmin[];
+
+export const ReportesAdminAPI = {
+  /** ✅ Resumen para tarjeta(s) del dashboard */
+  async resumen(): Promise<ReporteResumenAdmin> {
+    const res = await api.get<ReporteResumenResponse>("/admin/reportes/resumen");
+    const payload = res.data as any;
+    return payload?.data ?? payload ?? {};
+  },
+
+  /** ✅ Aprobaciones por módulo o curso */
+  async aprobaciones(params?: {
+    tipo?: AprobacionTipo; // "modulo" | "curso"
+    desde?: string; // YYYY-MM-DD
+    hasta?: string; // YYYY-MM-DD
+    usuario_id?: number;
+    curso_id?: number;
+    modulo_id?: number;
+    estado?: string; // aprobado / en_progreso / reprobado
+  }): Promise<ReporteAprobacionAdmin[]> {
+    const res = await api.get<AprobacionesListResponse>(
+      "/admin/reportes/aprobaciones",
+      { params }
+    );
+    return unwrapList<ReporteAprobacionAdmin>(res.data);
+  },
+
+  /** 🧩 Mantengo el list() existente por si hoy tu backend lo usa para otra cosa */
+  async list(): Promise<ReporteAdmin[]> {
+    const res = await api.get<ReportesListResponse>("/admin/reportes");
+    return unwrapList<ReporteAdmin>(res.data);
   },
 };
