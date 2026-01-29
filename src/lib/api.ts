@@ -383,6 +383,13 @@ type LeccionItemResponse =
   | LeccionDetalle;
 
 export const LeccionesAdminAPI = {
+  /** 🔹 Lista TODAS las lecciones/clases (para dashboard, /admin/clases, etc.) */
+  async list(): Promise<LeccionListItem[]> {
+    const res = await api.get<LeccionesListResponse>("/admin/lecciones");
+    return unwrapList<LeccionListItem>(res.data);
+  },
+
+  /** 🔹 Lista las lecciones de un módulo concreto */
   async listByModulo(moduloId: number): Promise<LeccionListItem[]> {
     try {
       const res = await api.get<any>(`/admin/modulos/${moduloId}/lecciones`);

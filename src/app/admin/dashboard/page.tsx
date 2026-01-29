@@ -8,11 +8,18 @@ import api, {
   UsuariosAPI,
   CursosAdminAPI,
   ModulosAdminAPI,
+  ClasesAdminAPI,
   PruebasAdminAPI,
   ReportesAdminAPI,
 } from "@/lib/api";
 
-type StatKey = "usuarios" | "cursos" | "modulos" | "pruebas" | "reportes";
+type StatKey =
+  | "usuarios"
+  | "cursos"
+  | "modulos"
+  | "clases"
+  | "pruebas"
+  | "reportes";
 
 type StatItem = {
   key: StatKey;
@@ -46,9 +53,16 @@ export default function AdminHome() {
       value: null,
     },
     {
+      key: "clases",
+      label: "Clases",
+      icon: PlayCircle,
+      href: "/admin/clases",
+      value: null,
+    },
+    {
       key: "pruebas",
       label: "Pruebas",
-      icon: PlayCircle,
+      icon: FileText,
       href: "/admin/pruebas",
       value: null,
     },
@@ -113,12 +127,14 @@ export default function AdminHome() {
         usuariosRes,
         cursosRes,
         modulosRes,
+        clasesRes,
         pruebasRes,
         reportesRes,
       ] = await Promise.allSettled([
         UsuariosAPI.list(),
         CursosAdminAPI.list(),
         ModulosAdminAPI.listAll(),
+        ClasesAdminAPI.list(),
         PruebasAdminAPI.list(),
         ReportesAdminAPI.list(),
       ]);
@@ -140,6 +156,12 @@ export default function AdminHome() {
       if (modulosRes.status === "fulfilled") {
         nextValues.modulos = Array.isArray(modulosRes.value)
           ? modulosRes.value.length
+          : 0;
+      }
+
+      if (clasesRes.status === "fulfilled") {
+        nextValues.clases = Array.isArray(clasesRes.value)
+          ? clasesRes.value.length
           : 0;
       }
 
@@ -196,7 +218,8 @@ export default function AdminHome() {
             {loadingUser ? "Cargando..." : `${userName}, ¡Bienvenido!`}
           </h3>
           <p className="welcome-sub">
-            Gestiona usuarios, cursos, módulos, pruebas y reportes desde aquí.
+            Gestiona usuarios, cursos, módulos, clases, pruebas y reportes desde
+            aquí.
           </p>
         </div>
         <div>
