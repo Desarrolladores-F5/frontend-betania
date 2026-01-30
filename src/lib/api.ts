@@ -11,16 +11,68 @@ export const FILES_BASE_URL =
 /**
  * Cliente Axios
  * - baseURL: `${API_URL}/api` → apunta directamente al backend
- * - withCredentials: true → envío/recepción de cookies HttpOnly.
+ * - withCredentials:
+ *   - Para Safari compatible con Bearer NO dependemos de cookies.
+ *   - Puedes dejarlo en false (recomendado). Si lo dejas true, no molesta,
+ *     pero no será el mecanismo principal.
  */
 const api = axios.create({
   baseURL: `${API_URL}/api`,
-  withCredentials: true,
+  withCredentials: false,
   headers: { "Content-Type": "application/json" },
 });
 
 export default api;
 export { api };
+
+/* ======================================================================
+ * Interceptors (Bearer Token)
+ * ====================================================================== */
+
+/**
+ * Inyecta Authorization: Bearer <token> en cada request
+ */
+api.interceptors.request.use(
+  (config) => {
+    try {
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem("token");
+        if (token && token.trim() !== "") {
+          config.headers = config.headers ?? {};
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      }
+    } catch (e) {
+      // No bloqueamos la request por problemas de storage
+      console.warn("No se pudo leer token desde localStorage:", e);
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+/**
+ * Si el backend devuelve 401/403, limpiamos auth local para forzar re-login
+ * (Opcional, pero recomendado para evitar estados corruptos)
+ */
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 401 || status === 403) {
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          sessionStorage.clear();
+        }
+      } catch (e) {
+        console.warn("Error limpiando auth tras 401/403:", e);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 /* ======================================================================
  * Utilidades comunes
@@ -110,10 +162,7 @@ export const UsuariosAPI = {
     rol_id: number;
     activo?: boolean;
   }): Promise<UsuarioAdmin> {
-    const res = await api.post<UsuarioItemResponse>(
-      "/admin/usuarios",
-      payload
-    );
+    const res = await api.post<UsuarioItemResponse>("/admin/usuarios", payload);
     return unwrapItem<UsuarioAdmin>(res.data)!;
   },
 
@@ -177,10 +226,7 @@ export const CursosAdminAPI = {
     return unwrapItem<CursoDetalle>(res.data)!;
   },
 
-  async update(
-    id: number,
-    payload: Partial<CursoBase>
-  ): Promise<CursoDetalle> {
+  async update(id: number, payload: Partial<CursoBase>): Promise<CursoDetalle> {
     const res = await api.put<CursoItemResponse>(
       `/admin/cursos/${id}`,
       payload
@@ -202,10 +248,7 @@ export const UploadsAPI = {
     fd.append("file", file);
 
     const res = await api.post<{ url: string }>("/admin/uploads/imagen", fd, {
-      withCredentials: true,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+      headers: { "Content-Type": "multipart/form-data" },
     });
 
     if (!res.data?.url) {
@@ -219,10 +262,7 @@ export const UploadsAPI = {
     fd.append("file", file);
 
     const res = await api.post<{ url: string }>("/admin/uploads/pdf", fd, {
-      withCredentials: true,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+      headers: { "Content-Type": "multipart/form-data" },
     });
 
     if (!res.data?.url) {
@@ -279,7 +319,6 @@ type ModuloItemResponse =
   | ModuloDetalle;
 
 export const ModulosAdminAPI = {
-  /** Lista módulos de un curso concreto */
   async listByCurso(cursoId: number): Promise<ModuloListItem[]> {
     const res = await api.get<any>(`/admin/cursos/${cursoId}/modulos`);
     const payload = res.data;
@@ -287,7 +326,6 @@ export const ModulosAdminAPI = {
     return unwrapList<ModuloListItem>(payload);
   },
 
-  /** ✅ Nuevo: lista todos los módulos (para el dashboard) */
   async listAll(): Promise<ModuloListItem[]> {
     const res = await api.get<any>("/admin/modulos");
     return unwrapList<ModuloListItem>(res.data);
@@ -336,42 +374,34 @@ export type LeccionBase = {
   titulo: string;
   descripcion?: string | null;
 
-  // Video principal
   youtube_id?: string | null;
   youtube_titulo?: string | null;
 
-  // Video adicional
   youtube_id_extra?: string | null;
   youtube_titulo_extra?: string | null;
 
-  // 📄 PDF con contenido principal de la clase
   contenido_pdf_url?: string | null;
   contenido_pdf_titulo?: string | null;
 
-  // 📄 PDF de recursos / complementario
   pdf_url?: string | null;
   pdf_titulo?: string | null;
 
-  // Compatibilidad con vistas antiguas
   tipo?: "video" | "pdf" | "html" | "link";
   contenido_url?: string | null;
   duracion_segundos?: number | null;
 
-  // Metadatos
   orden?: number | null;
   publicado?: boolean;
   activo?: boolean;
   created_at?: string;
   updated_at?: string;
 
-  // ID de examen asociado (si la clase tiene prueba)
   examen_id?: number | null;
 };
 
 export type LeccionListItem = LeccionBase;
 export type LeccionDetalle = LeccionBase;
 
-/** Alias de compatibilidad para código antiguo que usa "ClaseListItem" */
 export type ClaseListItem = LeccionListItem;
 export type ClaseDetalle = LeccionDetalle;
 
@@ -383,13 +413,11 @@ type LeccionItemResponse =
   | LeccionDetalle;
 
 export const LeccionesAdminAPI = {
-  /** 🔹 Lista TODAS las lecciones/clases (para dashboard, /admin/clases, etc.) */
   async list(): Promise<LeccionListItem[]> {
     const res = await api.get<LeccionesListResponse>("/admin/lecciones");
     return unwrapList<LeccionListItem>(res.data);
   },
 
-  /** 🔹 Lista las lecciones de un módulo concreto */
   async listByModulo(moduloId: number): Promise<LeccionListItem[]> {
     try {
       const res = await api.get<any>(`/admin/modulos/${moduloId}/lecciones`);
@@ -435,10 +463,7 @@ export const LeccionesAdminAPI = {
 
     examen_id?: number | null;
   }): Promise<LeccionDetalle> {
-    const res = await api.post<LeccionItemResponse>(
-      `/admin/lecciones`,
-      payload
-    );
+    const res = await api.post<LeccionItemResponse>(`/admin/lecciones`, payload);
     return unwrapItem<LeccionDetalle>(res.data)!;
   },
 
@@ -458,7 +483,6 @@ export const LeccionesAdminAPI = {
   },
 };
 
-/** Alias de compatibilidad: ClasesAdminAPI → LeccionesAdminAPI */
 export const ClasesAdminAPI = LeccionesAdminAPI;
 
 /* ======================================================================
@@ -493,7 +517,6 @@ export type ExamenAdmin = {
   preguntas?: PreguntaAdmin[];
 };
 
-/** Prueba asociada a una clase (vista desde admin/ver) */
 export type PruebaClaseDetalle = {
   id?: number;
   clase_id?: number;
@@ -512,32 +535,24 @@ type ExamenListResponse = ExamenAdmin[] | { data: ExamenAdmin[] };
 type ExamenItemResponse = ExamenAdmin | { data: ExamenAdmin };
 
 export const PruebasAdminAPI = {
-  /** Lista todos los exámenes (pruebas) */
   async list(): Promise<ExamenAdmin[]> {
     const r = await api.get<ExamenListResponse>("/admin/examenes");
     return unwrapList<ExamenAdmin>(r.data);
   },
 
-  /** Obtiene un examen completo (con preguntas y alternativas) */
   async get(id: number): Promise<ExamenAdmin | null> {
     const r = await api.get<ExamenItemResponse>(`/admin/examenes/${id}`);
     const examen = unwrapItem<ExamenAdmin>(r.data);
     return examen;
   },
 
-  /** 🔹 Obtiene la prueba asociada a una clase (si existe) */
   async getByClase(claseId: number): Promise<PruebaClaseDetalle | null> {
     try {
-      // 1) Primero obtenemos la lección para saber si tiene examen asociado
       const leccion = await LeccionesAdminAPI.get(claseId);
       const examenId = leccion?.examen_id;
 
-      if (!examenId) {
-        // La clase aún no tiene examen vinculado
-        return null;
-      }
+      if (!examenId) return null;
 
-      // 2) Obtenemos el examen completo (con preguntas y alternativas)
       const examen = await PruebasAdminAPI.get(examenId);
       if (!examen) return null;
 
@@ -564,7 +579,6 @@ export const PruebasAdminAPI = {
     }
   },
 
-  /** Crea un examen */
   async create(payload: {
     curso_id: number;
     titulo: string;
@@ -576,24 +590,18 @@ export const PruebasAdminAPI = {
     return unwrapItem<ExamenAdmin>(r.data)!;
   },
 
-  /** Actualiza un examen (solo datos generales) */
   async update(
     id: number,
     payload: Partial<Omit<ExamenAdmin, "id" | "curso_id" | "preguntas">>
   ): Promise<ExamenAdmin> {
-    const r = await api.put<ExamenItemResponse>(
-      `/admin/examenes/${id}`,
-      payload
-    );
+    const r = await api.put<ExamenItemResponse>(`/admin/examenes/${id}`, payload);
     return unwrapItem<ExamenAdmin>(r.data)!;
   },
 
-  /** Elimina un examen */
   async remove(id: number): Promise<void> {
     await api.delete(`/admin/examenes/${id}`);
   },
 
-  /** Actualiza examen completo (examen + preguntas + alternativas) */
   async updateFull(
     id: number,
     payload: {
@@ -616,14 +624,9 @@ export const PruebasAdminAPI = {
     return unwrapItem<ExamenAdmin>(r.data)!;
   },
 
-  // Preguntas
   async createPregunta(
     examenId: number,
-    payload: {
-      enunciado: string;
-      puntaje?: number;
-      orden?: number;
-    }
+    payload: { enunciado: string; puntaje?: number; orden?: number }
   ): Promise<PreguntaAdmin> {
     const r = await api.post<PreguntaAdmin>(
       `/admin/examenes/${examenId}/preguntas`,
@@ -636,10 +639,7 @@ export const PruebasAdminAPI = {
     id: number,
     payload: Partial<PreguntaAdmin>
   ): Promise<PreguntaAdmin> {
-    const r = await api.put<PreguntaAdmin>(
-      `/admin/examenes/preguntas/${id}`,
-      payload
-    );
+    const r = await api.put<PreguntaAdmin>(`/admin/examenes/preguntas/${id}`, payload);
     return r.data;
   },
 
@@ -647,7 +647,6 @@ export const PruebasAdminAPI = {
     await api.delete(`/admin/examenes/preguntas/${id}`);
   },
 
-  // Alternativas
   async createAlternativa(
     preguntaId: number,
     payload: { texto: string; es_correcta: boolean }
@@ -663,10 +662,7 @@ export const PruebasAdminAPI = {
     id: number,
     payload: Partial<AlternativaAdmin>
   ): Promise<AlternativaAdmin> {
-    const r = await api.put<AlternativaAdmin>(
-      `/admin/examenes/alternativas/${id}`,
-      payload
-    );
+    const r = await api.put<AlternativaAdmin>(`/admin/examenes/alternativas/${id}`, payload);
     return r.data;
   },
 
@@ -676,7 +672,7 @@ export const PruebasAdminAPI = {
 };
 
 /* ======================================================================
- * Reportes (Admin) — Aprobaciones (módulo / curso)
+ * Reportes (Admin)
  * ====================================================================== */
 
 export type ReporteResumenAdmin = {
@@ -695,27 +691,21 @@ type ReporteResumenResponse =
 export type AprobacionTipo = "modulo" | "curso";
 
 export type ReporteAprobacionAdmin = {
-  // Identificadores
   id: number;
-
   tipo: AprobacionTipo;
 
-  // Alumno
   usuario_id: number;
   alumno_nombre?: string | null;
   alumno_email?: string | null;
 
-  // Curso / Módulo
   curso_id?: number | null;
   curso_titulo?: string | null;
   modulo_id?: number | null;
   modulo_titulo?: string | null;
 
-  // Resultado
   estado?: "aprobado" | "reprobado" | "en_progreso" | string;
   nota_final?: number | null;
 
-  // Fechas
   fecha_aprobacion?: string | null;
   created_at?: string;
 };
@@ -724,7 +714,6 @@ type AprobacionesListResponse =
   | { ok: boolean; data: ReporteAprobacionAdmin[] }
   | ReporteAprobacionAdmin[];
 
-/** (Opcional) Mantengo compatibilidad con tu list() original */
 export type ReporteAdmin = {
   id: number;
   titulo?: string | null;
@@ -735,22 +724,20 @@ type ReportesListResponse =
   | ReporteAdmin[];
 
 export const ReportesAdminAPI = {
-  /** ✅ Resumen para tarjeta(s) del dashboard */
   async resumen(): Promise<ReporteResumenAdmin> {
     const res = await api.get<ReporteResumenResponse>("/admin/reportes/resumen");
     const payload = res.data as any;
     return payload?.data ?? payload ?? {};
   },
 
-  /** ✅ Aprobaciones por módulo o curso */
   async aprobaciones(params?: {
-    tipo?: AprobacionTipo; // "modulo" | "curso"
-    desde?: string; // YYYY-MM-DD
-    hasta?: string; // YYYY-MM-DD
+    tipo?: AprobacionTipo;
+    desde?: string;
+    hasta?: string;
     usuario_id?: number;
     curso_id?: number;
     modulo_id?: number;
-    estado?: string; // aprobado / en_progreso / reprobado
+    estado?: string;
   }): Promise<ReporteAprobacionAdmin[]> {
     const res = await api.get<AprobacionesListResponse>(
       "/admin/reportes/aprobaciones",
@@ -759,7 +746,6 @@ export const ReportesAdminAPI = {
     return unwrapList<ReporteAprobacionAdmin>(res.data);
   },
 
-  /** 🧩 Mantengo el list() existente por si hoy tu backend lo usa para otra cosa */
   async list(): Promise<ReporteAdmin[]> {
     const res = await api.get<ReportesListResponse>("/admin/reportes");
     return unwrapList<ReporteAdmin>(res.data);

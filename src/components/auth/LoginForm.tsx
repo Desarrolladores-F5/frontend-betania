@@ -16,22 +16,18 @@ const LoginSchema = z.object({
 });
 type LoginData = z.infer<typeof LoginSchema>;
 
-// Mapea el objeto user devuelto por el backend a un "rol lógico"
 function resolveRole(user: any): "admin" | "supervisor" | "user" {
-  // 1) Si viene string
   const r = (user?.rol ?? user?.role ?? "").toString().toLowerCase();
   if (r === "admin" || r === "supervisor" || r === "user" || r === "usuario") {
     return r === "usuario" ? "user" : (r as any);
   }
 
-  // 2) Si viene numérico (por ejemplo 1=admin, 2=usuario)
   const rid = Number(user?.rol_id ?? user?.role_id);
   if (Number.isFinite(rid)) {
     if (rid === 1) return "admin";
     if (rid === 2) return "user";
   }
 
-  // 3) Fallback
   return "user";
 }
 
@@ -59,24 +55,41 @@ export default function LoginForm(): React.JSX.Element {
     };
 
     try {
-      // Esperado: { user: { id, email, rol | rol_id, ... } } y set de cookie HttpOnly
+      // Esperado (nuevo): { token: string, user: { ... } }
       const res = await api.post("/auth/login", payload);
+
       const user = res.data?.user;
+      const token = res.data?.token; // ✅ 1) tomar token
+
       if (!user) throw new Error("Respuesta inválida: falta 'user'");
+      if (!token || typeof token !== "string") {
+        throw new Error("Respuesta inválida: falta 'token'");
+      }
+
+      // ✅ 2) Guardar token para Safari (Bearer)
+      // (mínimo viable; luego lo usaremos en api.ts con interceptor)
+      localStorage.setItem("token", token);
 
       const role = resolveRole(user);
 
-      // Redirección según rol
+      // ✅ 3) Redirección según rol
       if (role === "admin") {
         router.replace("/admin/dashboard");
       } else if (role === "supervisor") {
-        router.replace("/supervisor/dashboard"); // crea esta ruta si la usarás
+        router.replace("/supervisor/dashboard");
       } else {
-        router.replace("/user/dashboard"); // <-- CORREGIDO (antes era "/dashboard")
+        router.replace("/user/dashboard");
       }
     } catch (err: any) {
-      const backendMsg = err?.response?.data?.error ?? err?.response?.data?.message;
-      setErrorMsg(backendMsg ? String(backendMsg) : "Credenciales inválidas o error de conexión.");
+      const backendMsg =
+        err?.response?.data?.error ?? err?.response?.data?.message;
+
+      setErrorMsg(
+        backendMsg
+          ? String(backendMsg)
+          : "Credenciales inválidas o error de conexión."
+      );
+
       console.error("Error autenticación:", err);
     }
   }
@@ -102,7 +115,9 @@ export default function LoginForm(): React.JSX.Element {
           aria-invalid={!!errors.email}
           autoComplete="username"
         />
-        {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>}
+        {errors.email && (
+          <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
+        )}
       </div>
 
       <div>
@@ -128,7 +143,9 @@ export default function LoginForm(): React.JSX.Element {
             {showPass ? <EyeOff width={18} height={18} /> : <Eye width={18} height={18} />}
           </button>
         </div>
-        {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password.message}</p>}
+        {errors.password && (
+          <p className="text-sm text-red-600 mt-1">{errors.password.message}</p>
+        )}
       </div>
 
       <div className="form-row mt-2">
