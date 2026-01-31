@@ -3,7 +3,9 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Users, BookOpen, Layers, PlayCircle, FileText } from "lucide-react";
+
 import api, {
   UsuariosAPI,
   CursosAdminAPI,
@@ -11,6 +13,7 @@ import api, {
   ClasesAdminAPI,
   PruebasAdminAPI,
   ReportesAdminAPI,
+  clearAuth,
 } from "@/lib/api";
 
 type StatKey =
@@ -29,50 +32,26 @@ type StatItem = {
   value: number | null;
 };
 
+function firstName(s?: string | null) {
+  const v = String(s ?? "").trim();
+  return v ? v.split(/\s+/)[0] : "";
+}
+
+function emailUserName(email?: string | null) {
+  const v = String(email ?? "").trim();
+  return v && v.includes("@") ? v.split("@")[0] : "";
+}
+
 export default function AdminHome() {
+  const router = useRouter();
+
   const [stats, setStats] = useState<StatItem[]>([
-    {
-      key: "usuarios",
-      label: "Usuarios",
-      icon: Users,
-      href: "/admin/usuarios",
-      value: null,
-    },
-    {
-      key: "cursos",
-      label: "Cursos",
-      icon: BookOpen,
-      href: "/admin/cursos",
-      value: null,
-    },
-    {
-      key: "modulos",
-      label: "Módulos",
-      icon: Layers,
-      href: "/admin/modulos",
-      value: null,
-    },
-    {
-      key: "clases",
-      label: "Clases",
-      icon: PlayCircle,
-      href: "/admin/clases",
-      value: null,
-    },
-    {
-      key: "pruebas",
-      label: "Pruebas",
-      icon: FileText,
-      href: "/admin/pruebas",
-      value: null,
-    },
-    {
-      key: "reportes",
-      label: "Reportes",
-      icon: FileText,
-      href: "/admin/reportes",
-      value: null,
-    },
+    { key: "usuarios", label: "Usuarios", icon: Users, href: "/admin/usuarios", value: null },
+    { key: "cursos", label: "Cursos", icon: BookOpen, href: "/admin/cursos", value: null },
+    { key: "modulos", label: "Módulos", icon: Layers, href: "/admin/modulos", value: null },
+    { key: "clases", label: "Clases", icon: PlayCircle, href: "/admin/clases", value: null },
+    { key: "pruebas", label: "Pruebas", icon: FileText, href: "/admin/pruebas", value: null },
+    { key: "reportes", label: "Reportes", icon: FileText, href: "/admin/reportes", value: null },
   ]);
 
   const [userName, setUserName] = useState<string>("Usuario");
@@ -83,34 +62,46 @@ export default function AdminHome() {
   useEffect(() => {
     void fetchUserName();
     void fetchCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchUserName() {
     setLoadingUser(true);
     try {
-      const meRes = await api.get("/auth/me"); // { user: { id, ... } }
-      const userId: number | null = meRes.data?.user?.id ?? null;
+      // Fuente principal: /auth/me (Bearer)
+      const meRes = await api.get("/auth/me");
+      const me = meRes.data?.user ?? null;
 
-      let display = "Usuario";
-
-      if (userId != null) {
-        const listRes = await api.get("/admin/usuarios");
-        const rows: any[] = Array.isArray(listRes.data)
-          ? listRes.data
-          : (listRes.data?.data ?? []);
-        const found = rows.find((u: any) => u.id === userId);
-
-        const nombres = String(found?.nombres ?? "").trim();
-        const email = String(found?.email ?? "").trim();
-
-        if (nombres.length > 0) {
-          display = nombres.split(" ")[0];
-        } else if (email.length > 0) {
-          display = email.split("@")[0];
-        }
+      const n0 = firstName(me?.nombres ?? me?.nombre);
+      if (n0) {
+        setUserName(n0);
+        return;
       }
 
-      setUserName(display);
+      const e0 = emailUserName(me?.email);
+      if (e0) {
+        setUserName(e0);
+        return;
+      }
+
+      // Fallback opcional (solo si admin puede listar usuarios y quieres mapear id->nombres)
+      const userId: number | null = me?.id ?? null;
+      if (userId != null) {
+        try {
+          const listRes = await api.get("/admin/usuarios");
+          const rows: any[] = Array.isArray(listRes.data)
+            ? listRes.data
+            : listRes.data?.data ?? [];
+          const found = rows.find((u: any) => u.id === userId);
+          const fromAdmin = firstName(found?.nombres);
+          if (fromAdmin) setUserName(fromAdmin);
+          else setUserName("Usuario");
+        } catch {
+          setUserName("Usuario");
+        }
+      } else {
+        setUserName("Usuario");
+      }
     } catch (err) {
       console.error("fetchUserName error:", err);
       setUserName("Usuario");
@@ -122,6 +113,7 @@ export default function AdminHome() {
   async function fetchCounts() {
     setLoadingCounts(true);
     setError(null);
+
     try {
       const [
         usuariosRes,
@@ -141,64 +133,41 @@ export default function AdminHome() {
 
       const nextValues: Partial<Record<StatKey, number>> = {};
 
-      if (usuariosRes.status === "fulfilled") {
-        nextValues.usuarios = Array.isArray(usuariosRes.value)
-          ? usuariosRes.value.length
-          : 0;
-      }
-
-      if (cursosRes.status === "fulfilled") {
-        nextValues.cursos = Array.isArray(cursosRes.value)
-          ? cursosRes.value.length
-          : 0;
-      }
-
-      if (modulosRes.status === "fulfilled") {
-        nextValues.modulos = Array.isArray(modulosRes.value)
-          ? modulosRes.value.length
-          : 0;
-      }
-
-      if (clasesRes.status === "fulfilled") {
-        nextValues.clases = Array.isArray(clasesRes.value)
-          ? clasesRes.value.length
-          : 0;
-      }
-
-      if (pruebasRes.status === "fulfilled") {
-        nextValues.pruebas = Array.isArray(pruebasRes.value)
-          ? pruebasRes.value.length
-          : 0;
-      }
-
-      if (reportesRes.status === "fulfilled") {
-        nextValues.reportes = Array.isArray(reportesRes.value)
-          ? reportesRes.value.length
-          : 0;
-      }
+      if (usuariosRes.status === "fulfilled") nextValues.usuarios = usuariosRes.value?.length ?? 0;
+      if (cursosRes.status === "fulfilled") nextValues.cursos = cursosRes.value?.length ?? 0;
+      if (modulosRes.status === "fulfilled") nextValues.modulos = modulosRes.value?.length ?? 0;
+      if (clasesRes.status === "fulfilled") nextValues.clases = clasesRes.value?.length ?? 0;
+      if (pruebasRes.status === "fulfilled") nextValues.pruebas = pruebasRes.value?.length ?? 0;
+      if (reportesRes.status === "fulfilled") nextValues.reportes = reportesRes.value?.length ?? 0;
 
       setStats((prev) =>
         prev.map((s) => ({
           ...s,
           value: nextValues[s.key] ?? s.value,
-        })),
+        }))
       );
     } catch (err) {
       console.error("fetchCounts error:", err);
-      setError(
-        "No se pudieron cargar las estadísticas. Visualizando valores en caché.",
-      );
+      setError("No se pudieron cargar las estadísticas. Visualizando valores en caché.");
     } finally {
       setLoadingCounts(false);
     }
   }
 
+  // ✅ Logout Safari-compatible (Bearer)
   async function handleLogout() {
     try {
       await api.post("/auth/logout");
-    } catch {}
-    localStorage.removeItem("user");
-    window.location.href = "/login";
+    } catch (err) {
+      console.warn("logout backend error:", err);
+    } finally {
+      // ✅ clave: borrar token + user + sessionStorage
+      clearAuth();
+
+      // ✅ navegación correcta en Next App Router
+      router.replace("/login");
+      router.refresh();
+    }
   }
 
   return (
@@ -218,10 +187,10 @@ export default function AdminHome() {
             {loadingUser ? "Cargando..." : `${userName}, ¡Bienvenido!`}
           </h3>
           <p className="welcome-sub">
-            Gestiona usuarios, cursos, módulos, clases, pruebas y reportes desde
-            aquí.
+            Gestiona usuarios, cursos, módulos, clases, pruebas y reportes desde aquí.
           </p>
         </div>
+
         <div>
           <button type="button" className="btn-logout" onClick={handleLogout}>
             Cerrar sesión
@@ -247,24 +216,14 @@ export default function AdminHome() {
                 className="stat-card custom-card"
                 aria-label={`${t.label} - ${t.value ?? "cargando"}`}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 18,
-                    alignItems: "center",
-                  }}
-                >
+                <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
                   <div className="card-icon-wrap" aria-hidden>
                     <Icon width={36} height={36} className="card-icon stat-icon" />
                   </div>
                   <div>
                     <div className="stat-label">{t.label}</div>
                     <div className="stat-value">
-                      {t.value === null
-                        ? loadingCounts
-                          ? "..."
-                          : "—"
-                        : t.value}
+                      {t.value === null ? (loadingCounts ? "..." : "—") : t.value}
                     </div>
                   </div>
                 </div>
