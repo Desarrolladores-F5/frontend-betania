@@ -15,13 +15,15 @@ type Props = {
 };
 
 export function CursoCard({ curso }: Props): React.JSX.Element {
+  const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       {curso.imagenUrl && (
         <div className="relative h-40 w-full overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={curso.imagenUrl}
+            src={`${API_URL}${curso.imagenUrl}`}
             alt={curso.titulo}
             className="h-full w-full object-cover"
           />
