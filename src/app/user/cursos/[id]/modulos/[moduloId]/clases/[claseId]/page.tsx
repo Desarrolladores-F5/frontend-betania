@@ -193,8 +193,22 @@ export default function VerClaseUsuarioPage(): React.JSX.Element {
       ? `/user/cursos/${cursoId}/modulos/${moduloIdNum}/clases/${leccionId}/prueba`
       : null;
 
-  // Datos del PDF principal
-  const contenidoPdfUrl = leccion?.contenido_pdf_url || null;
+    // Datos del PDF principal y complementario
+  const BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL;
+
+  const fixPdfUrl = (url?: string | null) => {
+    if (!url) return null;
+
+    if (url.includes("localhost")) {
+      return `${BASE_URL}${url.replace("http://localhost:3001", "")}`;
+    }
+
+    return url;
+  };
+
+  const contenidoPdfUrl = fixPdfUrl(leccion?.contenido_pdf_url);
+  const pdfComplementarioUrl = fixPdfUrl(leccion?.pdf_url);
+
   const contenidoPdfTitulo =
     leccion?.contenido_pdf_titulo ||
     leccion?.titulo ||
@@ -372,16 +386,16 @@ export default function VerClaseUsuarioPage(): React.JSX.Element {
                   </a>
                 )}
 
-                {leccion.pdf_url && (
-                  <a
-                    href={leccion.pdf_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-                  >
-                    Abrir PDF
-                  </a>
-                )}
+                {pdfComplementarioUrl && (
+  <a
+    href={pdfComplementarioUrl}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-flex items-center rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+  >
+    Abrir PDF
+  </a>
+)}
               </div>
             </section>
           )}
