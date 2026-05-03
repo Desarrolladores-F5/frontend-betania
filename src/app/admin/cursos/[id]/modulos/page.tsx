@@ -26,12 +26,11 @@ export default function ModulosPorCursoPage() {
     async function fetchData() {
       setCargando(true);
       setError(null);
+
       try {
-        // 1) Datos del curso
         const c = await CursosAdminAPI.get(cursoId);
         if (alive) setCurso(c);
 
-        // 2) Módulos del curso
         try {
           const ms = await ModulosAdminAPI.listByCurso(cursoId);
           if (alive) setModulos(ms);
@@ -58,6 +57,7 @@ export default function ModulosPorCursoPage() {
     }
 
     fetchData();
+
     return () => {
       alive = false;
     };
@@ -67,6 +67,7 @@ export default function ModulosPorCursoPage() {
     const ok = window.confirm(
       `¿Eliminar el módulo “${modulo.titulo}”? Esta acción es irreversible.`
     );
+
     if (!ok) return;
 
     try {
@@ -79,6 +80,18 @@ export default function ModulosPorCursoPage() {
   }
 
   const tituloCurso = curso?.titulo ?? `Curso #${cursoId}`;
+
+  const BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL;
+
+  const fixPdfUrl = (url?: string | null) => {
+    if (!url) return null;
+
+    if (url.includes("localhost")) {
+      return `${BASE_URL}${url.replace("http://localhost:3001", "")}`;
+    }
+
+    return url;
+  };
 
   return (
     <main className="p-6 space-y-6">
@@ -98,7 +111,6 @@ export default function ModulosPorCursoPage() {
           </p>
         </div>
 
-        {/* Botonera superior */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -121,19 +133,18 @@ export default function ModulosPorCursoPage() {
         </div>
       </header>
 
-      {/* Mensajes de estado */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
+
       {cargando && (
         <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
           Cargando…
         </div>
       )}
 
-      {/* Listado de módulos */}
       {!cargando && !error && (
         <section className="rounded-lg border border-gray-200 bg-white">
           {modulos.length === 0 ? (
@@ -142,72 +153,75 @@ export default function ModulosPorCursoPage() {
             </div>
           ) : (
             <ul className="divide-y divide-gray-200">
-              {modulos.map((m) => (
-                <li
-                  key={m.id}
-                  className="flex flex-wrap items-center justify-between gap-4 p-4"
-                >
-                  <div>
-                    <p className="font-medium">{m.titulo}</p>
-                    {m.descripcion && (
-                      <p className="text-sm text-gray-500">{m.descripcion}</p>
-                    )}
-                  </div>
+              {modulos.map((m) => {
+                const pdfIntroUrl = fixPdfUrl(m.pdf_intro_url);
 
-                  {/* Botones por módulo */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* 1️⃣ Ver video */}
-                    {m.video_intro_url && (
-                      <a
-                        href={m.video_intro_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-xl bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                return (
+                  <li
+                    key={m.id}
+                    className="flex flex-wrap items-center justify-between gap-4 p-4"
+                  >
+                    <div>
+                      <p className="font-medium">{m.titulo}</p>
+                      {m.descripcion && (
+                        <p className="text-sm text-gray-500">
+                          {m.descripcion}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {m.video_intro_url && (
+                        <a
+                          href={m.video_intro_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center rounded-xl bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                        >
+                          Ver video
+                        </a>
+                      )}
+
+                      {pdfIntroUrl && (
+                        <a
+                          href={pdfIntroUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center rounded-xl bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                        >
+                          Ver PDF
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/admin/modulos/${m.id}`)}
+                        className="inline-flex items-center rounded-xl border px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-slate-50"
                       >
-                        Ver video
-                      </a>
-                    )}
+                        Editar
+                      </button>
 
-                    {/* 2️⃣ Ver PDF */}
-                    {m.pdf_intro_url && (
-                      <a
-                        href={m.pdf_intro_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-xl bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(`/admin/modulos/${m.id}/clases`)
+                        }
+                        className="inline-flex items-center rounded-xl bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600"
                       >
-                        Ver PDF
-                      </a>
-                    )}
+                        Clases
+                      </button>
 
-                    {/* 3️⃣ Editar */}
-                    <button
-                      onClick={() => router.push(`/admin/modulos/${m.id}`)}
-                      className="inline-flex items-center rounded-xl border px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-slate-50"
-                    >
-                      Editar
-                    </button>
-
-                    {/* 4️⃣ Clases */}
-                    <button
-                      onClick={() =>
-                        router.push(`/admin/modulos/${m.id}/clases`)
-                      }
-                      className="inline-flex items-center rounded-xl bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600"
-                    >
-                      Clases
-                    </button>
-
-                    {/* 5️⃣ Eliminar */}
-                    <button
-                      onClick={() => handleDelete(m)}
-                      className="inline-flex items-center rounded-xl bg-red-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </li>
-              ))}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(m)}
+                        className="inline-flex items-center rounded-xl bg-red-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
