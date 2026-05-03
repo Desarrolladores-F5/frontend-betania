@@ -193,8 +193,13 @@ export default function ModuloDetalleUsuarioPage(): React.JSX.Element {
 
   // ✅ URL de embed del video introductorio del módulo
   const moduloVideoEmbedUrl = getYoutubeEmbedUrl(modulo?.video_intro_url || null);
-  const moduloPdfUrl = modulo?.pdf_intro_url || null;
+  const BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL;
 
+const moduloPdfUrl = modulo?.pdf_intro_url
+  ? modulo.pdf_intro_url.includes("localhost")
+    ? `${BASE_URL}${modulo.pdf_intro_url.replace("http://localhost:3001", "")}`
+    : modulo.pdf_intro_url
+  : null;
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
       {/* Encabezado con botón Volver */}
